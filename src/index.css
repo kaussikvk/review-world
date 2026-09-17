@@ -1,0 +1,64 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  --ink: #1c2321;
+  --paper: #f5f6f3;
+  --paper-raised: #ffffff;
+  --gold: #c89b3c;
+  --forest: #2f6d4f;
+  --forest-tint: #e6efe9;
+  --rust: #b3452f;
+  --rust-tint: #f5e6e1;
+  --slate: #6b7570;
+  --line: #e1e1da;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Inter", system-ui, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.serif {
+  font-family: "Fraunces", Georgia, serif;
+}
+
+.rd-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+.rd-scroll::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 3px;
+}
+
+.rd-fade-in {
+  animation: rdFadeIn 0.4s ease both;
+}
+@keyframes rdFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rd-chip {
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rd-fade-in {
+    animation: none;
+  }
+}
