@@ -138,6 +138,28 @@ function fakeAddress(rng) {
   return `${num} ${street} St, ${city}`;
 }
 
+
+export function generateSuggestions(query) {
+  const trimmed = query.trim();
+  if (trimmed.length < 2) return [];
+
+  const rng = makeRng(trimmed.toLowerCase() + "::suggest");
+  const base = toTitleCase(trimmed);
+  const out = [base];
+
+  while (out.length < 5) {
+    const style = Math.floor(rng() * 4);
+    let candidate;
+    if (style === 0) candidate = `${base} ${pick(rng, CATEGORIES)}`;
+    else if (style === 1) candidate = `${base} — ${pick(rng, CITIES)}`;
+    else if (style === 2) candidate = `${pick(rng, CATEGORIES)} — ${base}`;
+    else candidate = `${base} Near Me`;
+    if (!out.includes(candidate)) out.push(candidate);
+  }
+
+  return out;
+}
+
 export function generateBusinessData(query) {
   const rng = makeRng(query.trim().toLowerCase());
 

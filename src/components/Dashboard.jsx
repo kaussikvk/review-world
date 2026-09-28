@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
   Search,
   Star,
@@ -22,12 +22,14 @@ import {
 } from "recharts";
 
 import { WEEKDAYS, WEEKDAYS_LONG, SUGGESTIONS } from "../lib/demoData.jsx";
-import { fetchBusinessData } from "../lib/api.jsx";
+import { fetchBusinessData, fetchSuggestions } from "../lib/api.jsx";
 import Stars from "./Stars.jsx";
 import DayChip from "./DayChip.jsx";
 import DayHighlightCard from "./DayHighlightCard.jsx";
 
-
+/* ------------------------------------------------------------------ */
+/*  Analytics                                                          */
+/* ------------------------------------------------------------------ */
 
 function computeWeekdayStats(reviews) {
   const buckets = WEEKDAYS.map(() => ({ sum: 0, count: 0 }));
@@ -60,6 +62,9 @@ function getBestWorstDay(stats) {
   return { best, worst };
 }
 
+/* ------------------------------------------------------------------ */
+/*  Small local helpers                                                */
+/* ------------------------------------------------------------------ */
 
 function initials(name) {
   return name
@@ -84,6 +89,11 @@ function formatDate(d) {
     year: "numeric",
   });
 }
+
+/* ------------------------------------------------------------------ */
+/*  Main component                                                     */
+/* ------------------------------------------------------------------ */
+
 export default function Dashboard() {
   const [query, setQuery] = useState("");
   const [committedQuery, setCommittedQuery] = useState("");
@@ -95,7 +105,47 @@ export default function Dashboard() {
   const [reviewSearch, setReviewSearch] = useState("");
   const [visibleCount, setVisibleCount] = useState(10);
 
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
+
   const inputRef = useRef(null);
+
+  // Debounced autocomplete: wait 250ms after typing stops before asking
+  // for suggestions, and ignore stale responses if the query changed
+  // again in the meantime.
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (trimmed.length < 2) {
+      setSuggestions([]);
+      setSuggestionsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setSuggestionsLoading(true);
+    const handle = setTimeout(async () => {
+      const results = await fetchSuggestions(trimmed);
+      if (!cancelled) {
+        setSuggestions(results);
+        setSuggestionsLoading(false);
+      }
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [query]);
+
+  function selectSuggestion(s) {
+    setQuery(s);
+    setSuggestions([]);
+    setInputFocused(false);
+    runSearch(s);
+  }
+
+  const showDropdown =
+    inputFocused && !loading && query.trim().length >= 2 &&
+    (suggestions.length > 0 || suggestionsLoading);
 
   async function runSearch(q) {
     const trimmed = q.trim();
@@ -106,6 +156,8 @@ export default function Dashboard() {
     setReviewSearch("");
     setSortBy("recent");
     setVisibleCount(10);
+    setSuggestions([]);
+    setInputFocused(false);
     const data = await fetchBusinessData(trimmed);
     setBusiness(data);
     setLoading(false);
@@ -177,7 +229,7 @@ export default function Dashboard() {
         </div>
 
         {/* Search */}
-        <div className="mb-3">
+        <div className="mb-3 relative">
           <div
             className="flex items-center gap-2 rounded-xl px-4 py-3"
             style={{
@@ -191,10 +243,13 @@ export default function Dashboard() {
               ref={inputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onFocus={() => setInputFocused(true)}
+              onBlur={() => setTimeout(() => setInputFocused(false), 120)}
               onKeyDown={(e) => e.key === "Enter" && runSearch(query)}
               placeholder="Search a business or location — e.g. The Copper Kettle"
               className="flex-1 outline-none bg-transparent text-sm"
               style={{ color: "var(--ink)" }}
+              autoComplete="off"
             />
             {query && (
               <button
@@ -219,7 +274,47 @@ export default function Dashboard() {
             </button>
           </div>
 
-          {!business && !loading && (
+          {showDropdown && (
+            <div
+              className="absolute left-0 right-0 mt-1.5 rounded-xl overflow-hidden z-10"
+              style={{
+                background: "var(--paper-raised)",
+                border: "1px solid var(--line)",
+                boxShadow: "0 8px 20px rgba(28,35,33,0.08)",
+              }}
+            >
+              {suggestionsLoading && suggestions.length === 0 ? (
+                <div
+                  className="flex items-center gap-2 px-4 py-3 text-sm"
+                  style={{ color: "var(--slate)" }}
+                >
+                  <Loader2 className="animate-spin" width={14} height={14} />
+                  Searching…
+                </div>
+              ) : (
+                suggestions.map((s, i) => (
+                  <button
+                    key={`${s}-${i}`}
+                    onMouseDown={(e) => {
+                      e.preventDefault(); // keep focus so blur doesn't close before click
+                      selectSuggestion(s);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-left text-sm"
+                    style={{
+                      borderTop: i === 0 ? "none" : "1px solid var(--line)",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "#F3F3EE")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <Search width={13} height={13} color="var(--slate)" style={{ flexShrink: 0 }} />
+                    <span>{s}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+
+          {!business && !loading && !query.trim() && (
             <div className="flex flex-wrap items-center gap-2 mt-3">
               <span className="text-xs" style={{ color: "var(--slate)" }}>
                 Try:
